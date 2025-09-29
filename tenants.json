@@ -1,0 +1,17 @@
+{
+  "default": {
+    "dbKind": "mongo",
+    "mongo": { "uri": "mongodb+srv://user:pass@cluster/blog?retryWrites=true&w=majority" }
+  },
+  "acme": {
+    "dbKind": "postgres",
+    "sql": {
+      "type": "postgres",
+      "host": "localhost",
+      "port": 5432,
+      "username": "acme",
+      "password": "secret",
+      "database": "acme_blog"
+    }
+  }
+}
