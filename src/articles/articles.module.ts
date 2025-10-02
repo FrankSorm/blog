@@ -1,14 +1,12 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { Article, ArticleSchema } from './schemas/article.schema';
 import { ArticlesService } from './articles.service';
 import { ArticlesAdminController } from './articles.controller';
 import { ArticlesPublicController } from './articles.public.controller';
+import { TenantRepoFactory } from '../tenancy/tenant.repo.factory';
 
 @Module({
-  imports: [MongooseModule.forFeature([{ name: Article.name, schema: ArticleSchema }])],
-  providers: [ArticlesService],
+  providers: [TenantRepoFactory, ArticlesService],
   controllers: [ArticlesAdminController, ArticlesPublicController],
-  exports: [ArticlesService],
+  exports: [TenantRepoFactory, ArticlesService],
 })
 export class ArticlesModule {}

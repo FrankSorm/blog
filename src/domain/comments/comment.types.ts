@@ -1,18 +1,12 @@
 export interface Comment {
-  id: string;
-  articleId: string;
-  parentId?: string | null;
-  authorName?: string | null; // volitelně anonym/registrovaný
+  id: string;                // uuid4
+  articleId: string;         // uuid of article
+  parentId?: string | null;  // uuid of parent comment
+  authorName?: string | null;
   content: string;
-  score: number; // derivováno (pos - neg), ale držíme pro rychlé čtení
-  createdAt: Date;
-  updatedAt: Date;
+  score: number;
+  createdAt: Date; updatedAt: Date;
 }
-
 export interface Vote {
-  id: string;
-  commentId: string;
-  ip: string;
-  value: 1 | -1;
-  createdAt: Date;
+  id: string; commentId: string; ip: string; value: 1|-1; createdAt: Date;
 }

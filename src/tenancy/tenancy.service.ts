@@ -1,31 +1,24 @@
-import { Injectable } from '@nestjs/common';
-import { TenancyOptions, TenantConfig } from './tenant.types';
+import configuration from '../config/configuration';
+import { TenantConfig } from './tenant.types';
 
-@Injectable()
 export class TenancyService {
   private tenantKey: string;
-  constructor(
-    private readonly opts: TenancyOptions,
-    private readonly req?: any,
-  ) {
-    this.tenantKey = this.resolveTenantKey();
-  }
-
-  private resolveTenantKey(): string {
-    if (this.opts.mode === 'header') {
-      const key = this.req?.headers?.[this.opts.headerName?.toLowerCase() || 'x-tenant'];
-      return (Array.isArray(key) ? key[0] : key) || 'default';
+  private tenants: Record<string, any>;
+  constructor(private readonly req: any, tenantsJson: any) {
+    this.tenants = tenantsJson || {};
+    const cfg = configuration();
+    if (cfg.tenancy.mode === 'header') {
+      const hdr = (cfg.tenancy.header || 'X-Tenant').toLowerCase();
+      const key = this.req?.headers?.[hdr];
+      this.tenantKey = (Array.isArray(key) ? key[0] : key) || 'default';
+    } else {
+      this.tenantKey = 'default';
     }
-    return 'default';
   }
-
-  getTenantKey() {
-    return this.tenantKey;
-  }
-
+  getTenantKey() { return this.tenantKey; }
   getTenant(): TenantConfig {
-    const tenant = this.opts.tenants[this.tenantKey] || this.opts.tenants['default'];
-    if (!tenant) throw new Error(`Tenant config not found for key=${this.tenantKey}`);
-    return tenant;
+    const t = this.tenants[this.tenantKey] || this.tenants['default'];
+    if (!t) throw new Error(`Tenant config not found for key=${this.tenantKey}`);
+    return { key: this.tenantKey, ...t };
   }
 }

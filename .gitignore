@@ -3,5 +3,4 @@ dist/
 coverage/
 uploads/
 .env
-.npmrc
 .DS_Store

@@ -1,5 +1,4 @@
 import { Comment, Vote } from './comment.types';
-
 export interface CommentsRepo {
   create(input: {
     articleId: string;
@@ -8,10 +7,9 @@ export interface CommentsRepo {
     authorName?: string | null;
   }): Promise<Comment>;
 
-  listByArticle(articleId: string): Promise<Comment[]>; // FE si poskládá strom (nebo doplníme server-side)
+  listByArticle(articleId: string): Promise<Comment[]>;
 
   delete(id: string): Promise<void>;
 
-  // Voting
   vote(commentId: string, ip: string, value: 1 | -1): Promise<{ comment: Comment; vote: Vote }>;
 }

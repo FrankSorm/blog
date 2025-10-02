@@ -1,18 +1,18 @@
 export interface ArticleImage {
   id: string;
   filename: string;
-  url: string; // /uploads/<tenant>/<filename>
+  url: string;
   alt?: string;
 }
 
 export type ArticleStatus = 'draft' | 'published' | 'scheduled';
 
 export interface Article {
-  id: string;
+  id: string; // uuid4
   title: string;
   slug: string;
   content: string;
-  excerpt: string;
+  excerpt?: string;
   tags: string[];
   categories: string[];
   status: ArticleStatus;
@@ -20,7 +20,7 @@ export interface Article {
   coverImage?: string | null;
   images: ArticleImage[];
   views: number;
-  authorId: string;
+  authorId: string; // uuid of user
   deletedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;

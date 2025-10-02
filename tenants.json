@@ -1,13 +1,17 @@
 {
   "default": {
     "dbKind": "mongo",
-    "mongo": { "uri": "mongodb+srv://user:pass@cluster/blog?retryWrites=true&w=majority" }
+    "rateLimit": { "ttl": 60, "limit": 100 },
+    "mongo": {
+      "uri": "mongodb+srv://blog:sNkzomdVd4cX6eCF@cluster0.hjskxau.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+    }
   },
   "acme": {
     "dbKind": "postgres",
+    "rateLimit": { "ttl": 60, "limit": 120 },
     "sql": {
       "type": "postgres",
-      "host": "localhost",
+      "host": "pg-acme",
       "port": 5432,
       "username": "acme",
       "password": "secret",

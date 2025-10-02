@@ -7,6 +7,7 @@ import {
   ObjectType,
   Field,
   ID,
+  Context,
 } from '@nestjs/graphql';
 import { CommentsService, pubsub } from './comments.service';
 
@@ -24,56 +25,50 @@ class GqlComment {
 
 @Resolver(() => GqlComment)
 export class CommentsResolver {
-  constructor(private readonly svc: CommentsService) {}
+  constructor(private readonly commentService: CommentsService) {}
 
-  /**
-   * Vrátí komentáře k článku v chronologickém pořadí.
-   */
-  @Query(() => [GqlComment], { description: 'List comments for a given article (flat list)' })
-  commentsByArticle(@Args('articleId') articleId: string) {
-    return this.svc.listByArticle(articleId);
+  @Query(() => [GqlComment], { description: 'List comments for article (flat)' })
+  commentsByArticle(@Args('articleId') articleId: string, @Context() ctx: any) {
+    return this.commentService.listByArticle(articleId, ctx.tenantKey);
   }
 
-  /**
-   * Vytvoří komentář nebo odpověď (pokud předán parentId).
-   */
-  @Mutation(() => GqlComment, { description: 'Create a comment (optionally reply via parentId)' })
+  @Mutation(() => GqlComment, { description: 'Create a comment (or reply via parentId)' })
   createComment(
     @Args('articleId') articleId: string,
     @Args('content') content: string,
+    @Args('authorName') authorName: string,
     @Args('parentId', { nullable: true }) parentId?: string,
-    @Args('authorName', { nullable: true }) authorName?: string,
+    @Context() ctx?: any,
   ) {
-    return this.svc.create({
-      articleId,
-      content,
-      parentId: parentId ?? null,
-      authorName: authorName ?? null,
-    });
+    return this.commentService.create(
+      {
+        articleId,
+        parentId: parentId ?? null,
+        content,
+        authorName,
+      },
+      ctx.tenantKey,
+    );
   }
 
-  /**
-   * Hlasování: value = +1 nebo -1. Per-IP enforced na úrovni úložiště.
-   */
-  @Mutation(() => GqlComment, {
-    description: 'Vote for a comment (+1 or -1). IP uniqueness enforced.',
-  })
-  async voteComment(@Args('commentId') commentId: string, @Args('value') value: number) {
-    // IP v GraphQL nemáme – v praxi použij Request context (custom plugin) nebo oddělené REST volání.
-    const fakeIp = 'graphql-ctx'; // -> v reálu propojit s req.ip přes GraphQL context
-    const { comment } = await this.svc.vote(commentId, fakeIp, value === 1 ? 1 : -1);
+  @Mutation(() => GqlComment, { description: 'Vote for a comment (+1 or -1), per-IP unique' })
+  async voteComment(
+    @Args('commentId') commentId: string,
+    @Args('value') value: number,
+    @Context() ctx?: any,
+  ) {
+    const { comment } = await this.commentService.vote(
+      commentId,
+      'graphql-ctx',
+      value === 1 ? 1 : -1,
+      ctx.tenantKey,
+    );
     return comment;
   }
 
-  /**
-   * Subscriptions
-   */
-  @Subscription(() => GqlComment, { description: 'Subscribe to newly created comments' })
-  commentCreated() {
-    return pubsub.asyncIterator('commentCreated');
-  }
-
-  @Subscription(() => GqlComment, { description: 'Subscribe to vote updates (score changes)' })
+  @Subscription(() => GqlComment, {
+    filter: (payload, _vars, ctx) => payload.tenantKey === ctx.tenantKey, // tenant-isolated
+  })
   commentVoted() {
     return pubsub.asyncIterator('commentVoted');
   }

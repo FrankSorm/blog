@@ -1,12 +1,54 @@
-version: '3.9'
+# version: '3.9'
+# services:
+#   app:
+#     build: .
+#     ports: ['3000:3000']
+#     env_file: [.env]
+#     volumes: ['./uploads:/app/uploads']
+#     healthcheck:
+#       test: ["CMD","node","-e","fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+#       interval: 30s
+#       timeout: 5s
+#       retries: 5
+
 services:
   app:
     build: .
-    ports: ['3000:3000']
+    ports: ["3000:3000"]
     env_file: [.env]
-    volumes: ['./uploads:/app/uploads']
+    volumes:
+      - ./tenants.json:/app/tenants.json:ro
+      - ./uploads:/app/uploads
+    depends_on:
+      - pg-acme
     healthcheck:
-      test: ["CMD","node","-e","fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 30s
       timeout: 5s
       retries: 5
+  pg-acme:
+    image: postgres:16
+    container_name: pg-acme
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: acme_blog
+      POSTGRES_USER: acme
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5434:5432" # lokálně na 5434, aby se to nebilo s jiným PG
+    volumes:
+      - pg_acme_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acme -d acme_blog"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  pg_acme_data:

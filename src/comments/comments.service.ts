@@ -1,36 +1,35 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { CommentsRepo } from '../domain/comments/comment.repo';
+import { Injectable } from '@nestjs/common';
 import { PubSub } from 'graphql-subscriptions';
+import { TenantRepoFactory } from '../tenancy/tenant.repo.factory';
+import { CreateCommentDto } from './dto/create-comment.dto';
 
 export const pubsub = new PubSub();
 
 @Injectable()
 export class CommentsService {
-  // constructor(private readonly commentsRepo: CommentsRepo) {}
-  constructor(@Inject('CommentsRepo') private readonly commentsRepo: CommentsRepo) {}
+  constructor(private readonly factory: TenantRepoFactory) {}
 
-  async create(input: {
-    articleId: string;
-    parentId?: string | null;
-    content: string;
-    authorName?: string | null;
-  }) {
-    const c = await this.commentsRepo.create(input);
-    await pubsub.publish('commentCreated', { commentCreated: c });
-    return c;
+  async create(dto: CreateCommentDto, tenantKey: string) {
+    const repo = await this.factory.comments(tenantKey);
+
+    return repo.create(dto);
   }
 
-  listByArticle(articleId: string) {
-    return this.commentsRepo.listByArticle(articleId);
+  async listByArticle(articleId: string, tenantKey: string) {
+    const repo = await this.factory.comments(tenantKey);
+    return repo.listByArticle(articleId);
   }
 
-  async vote(commentId: string, ip: string, value: 1 | -1) {
-    const res = await this.commentsRepo.vote(commentId, ip, value);
+  async vote(commentId: string, ip: string, value: 1 | -1, tenantKey: string) {
+    const repo = await this.factory.comments(tenantKey);
+    const res = await repo.vote(commentId, ip, value);
     await pubsub.publish('commentVoted', { commentVoted: res.comment });
     return res;
   }
 
-  async delete(id: string) {
-    return this.commentsRepo.delete(id);
+  async delete(id: string, tenantKey: string) {
+    const repo = await this.factory.comments(tenantKey);
+
+    return repo.delete(id);
   }
 }

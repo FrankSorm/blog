@@ -1,5 +1,4 @@
 import {
-  Body,
   Controller,
   Delete,
   Get,
@@ -11,72 +10,75 @@ import {
   UseGuards,
   UseInterceptors,
   Req,
+  Body,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { randomUUID } from 'crypto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import { RolesGuard } from '../common/guards/roles.guard';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { ArticlesService } from './articles.service';
-import { Request } from 'express';
+import { User } from '../domain/users/user.types';
+import { ListArticlesDto } from './dto/list-articles.dto';
 
 @ApiTags('articles-admin')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 @Controller({ path: 'admin/articles', version: '1' })
 export class ArticlesAdminController {
   constructor(private readonly service: ArticlesService) {}
 
-  @Get()
-  @Roles('admin')
-  adminList(@Query() query: any) {
-    return this.service.adminFindAll(query);
+  @Get() list(@Query() query: ListArticlesDto, @Req() req: any) {
+    return this.service.adminFindAll(query, req.tenantKey);
   }
 
-  @Post()
-  create(@Body() dto: CreateArticleDto, @Req() req: Request) {
-    const user = req.user as any;
-    return this.service.create(dto, user.sub);
+  @Post() create(@Body() dto: CreateArticleDto, @Req() req: any) {
+    const user = req.user as User;
+    return this.service.create(dto, user, req.tenantKey);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateArticleDto, @Req() req: Request) {
-    const user = req.user as any;
-    return this.service.update(id, dto, user);
+  @Patch(':id') update(@Param('id') id: string, @Body() dto: UpdateArticleDto, @Req() req: any) {
+    const user = req.user as User;
+    return this.service.update(id, dto, user, req.tenantKey);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string, @Req() req: Request) {
-    const user = req.user as any;
-    return this.service.softDelete(id, user);
+  @Delete(':id') remove(@Param('id') id: string, @Req() req: any) {
+    const user = req.user as User;
+    return this.service.softDelete(id, user, req.tenantKey);
   }
 
+  // This has to be changed to upload file to cloud (google storage, S3, not on disc)
   @Post(':id/images')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FilesInterceptor('images', 20, {
       storage: diskStorage({
-        destination: './uploads',
-        filename: (_req, file, cb) => cb(null, uuidv4() + extname(file.originalname)),
+        destination: (req, _file, cb) => {
+          const t = (req as any).tenantKey || 'default';
+          const dir = `./uploads/${t}`;
+          cb(null, dir);
+        },
+        filename: (_req, file, cb) => cb(null, `${randomUUID()}${extname(file.originalname)}`),
       }),
       limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: (_req, file, cb) => {
-        const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
-        cb(null, allowed.indexOf(file.mimetype) !== -1);
+        const ok = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'].includes(
+          file.mimetype,
+        );
+        cb(null, ok);
       },
     }),
   )
-  uploadImages(@Param('id') id: string, @UploadedFiles() files: Express.Multer.File[]) {
-    return this.service.addImages(id, files);
+  upload(@Param('id') id: string, @UploadedFiles() files: Express.Multer.File[], @Req() req: any) {
+    const tenant = (req as any).tenantKey || 'default';
+    return this.service.addImages(id, files, tenant);
   }
 
   @Delete(':id/images/:imageId')
-  deleteImage(@Param('id') id: string, @Param('imageId') imageId: string) {
-    return this.service.removeImage(id, imageId);
+  removeImage(@Param('id') id: string, @Param('imageId') imageId: string, @Req() req: any) {
+    return this.service.removeImage(id, imageId, req.tenantKey);
   }
 }
